@@ -1,0 +1,108 @@
+---
+- name: Desplegar JBoss 8.1 en OpenShift Virtualization
+  hosts: localhost
+  connection: local
+  vars:
+    vm_name: "jboss-eda-demo"
+    namespace: "my-apps"
+    eda_url: "http://<IP_DE_TU_EDA>:5000/endpoint"
+    jboss_version: "8.1"
+
+    crc_url_api_client: "https://api.crc.testing:6443"
+    crc_user: "kubeadmin"
+    crc_validate_certs: false
+
+    awx_host: example-ansible-automation-platform.apps-crc.testing
+    awx_user: admin
+    awx_password: admin
+
+    token_user: "devops_user"
+    token_scope: "write"
+
+    ca_filename: crc-router-ca.crt
+    configmap_name: gitea-custom-ca
+
+  tasks:
+
+    - name: 
+      shell: "oc login -u {{crc_user}} {{crc_url_api_client}}"
+
+    - name: 
+      shell: oc whoami --show-token
+      register: token
+
+    - name: Crear Máquina Virtual en OpenShift
+      kubevirt.core.kubevirt_vm:
+        host: "{{ crc_url_api_client }}"
+        api_key: "{{ token.stdout }}"
+        validate_certs: "{{crc_validate_certs}}"
+        state: present
+        name: "{{ vm_name }}"
+        namespace: "{{ namespace }}"
+        definition:
+          spec:
+            running: true
+            template:
+              spec:
+                domain:
+                  cpu: { cores: 2 }
+                  memory: { guest: 4Gi }
+                  devices:
+                    disks:
+                      - name: rootdisk
+                        disk: { bus: virtio }
+                volumes:
+                  - name: rootdisk
+                    containerizedDataInterface:
+                      source:
+                        pvc:
+                          name: "rhel9-server-small" # Cambia esto por tu imagen
+                accessCredentials:
+                  - sshPublicKey:
+                      source:
+                        secret:
+                          secretName: my-ssh-key
+                      propagationMethod:
+                        configDrive: {}
+
+    - name: Esperar a que la VM tenga IP
+      shell: "oc get vmi {{ vm_name }} -n {{ namespace }} -o jsonpath='{.status.interfaces[0].ipAddress}'"
+      register: vm_ip
+      until: vm_ip.stdout != ""
+      retries: 30
+      delay: 10
+
+    - name: Report Operator Status
+      ansible.builtin.debug:
+        msg: "{{vm_ip}}"
+
+    - name: Añadir VM al inventario dinámico
+      add_host:
+        name: "{{ vm_ip.stdout }}"
+        groups: jboss_vms
+        ansible_user: cloud-user
+
+- name: Configurar JBoss y Java 21 en la VM
+  hosts: jboss_vms
+  become: yes
+  tasks:
+    - name: Instalar OpenJDK 21
+      dnf:
+        name: java-21-openjdk-devel
+        state: present
+
+    - name: Descargar e instalar JBoss EAP 8.1
+      # Nota: En entornos reales se usa el portal de Red Hat o un repositorio interno
+      unarchive:
+        src: "https://mi-servidor/jboss-eap-8.1.zip" 
+        dest: /opt/
+        remote_src: yes
+
+    - name: Configurar JAVA_OPTS con disparador EDA en standalone.conf
+      lineinfile:
+        path: /opt/jboss-eap-8.1/bin/standalone.conf
+        line: 'JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:OnOutOfMemoryError=\"curl -H \"Content-Type: application/json\" -X POST -d \"{\\\"status\\\":\\\"OutOfMemory\\\",\\\"host\\\":\\\"$(hostname)\\\"}\" {{ hostvars['localhost']['eda_url'] }}\""'
+        insertafter: EOF
+
+    - name: Iniciar JBoss como servicio
+      shell: "nohup /opt/jboss-eap-8.1/bin/standalone.sh -b 0.0.0.0 &"

@@ -1,0 +1,12 @@
+---
+- name: Playbook de Respuesta a Incidente
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Mostrar mensaje de alerta
+      debug:
+        msg: "¡Hola! He recibido una alerta de Heap Space. Iniciando diagnóstico automático..."
+
+    - name: Simular acción de corrección
+      debug:
+        msg: "El evento vino del host: {{ event.payload.host | default('Desconocido') }}"

@@ -1,0 +1,14 @@
+---
+- name: Escuchar eventos de JBoss/Java
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    - name: Evento de Heap Space detectado
+      condition: event.payload.status == "OutOfMemory"
+      action:
+        run_playbook:
+          name: helloworld.yml

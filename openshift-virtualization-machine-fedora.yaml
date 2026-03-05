@@ -1,0 +1,195 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    openshift.io/cluster-monitoring: "true"
+  name: virtualization-test
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: ssh-fedora-olive-fish-72
+  namespace: virtualization-test
+data:
+  key: c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFDQVFERHNjU1doT2xoSXJlOEJrUGpQUmR5NHF5MDJpTWIrZE50NXJUdmtabDZhZHlEUTA1cE9ZekRvay9FZE5oZVczVUFaOWNSdVl0UXlyOEd5WHhjZzJlcmdYMlUwUjVNcUN6c0ZibVdKUythUzZvZklqOVl4V3FIbU9pTVpDN3lrQisrVVNnNGFDTkw4bUo0K1k4NmFKeWp0VmYrVGxDeVczOHhXQUVPSmN6YXFFWDFlSktFN3FwWUhta2FNY05aRVh2d09pZ0lhM0MyaDFtUXEyaTBzM1cwNjQ4enlqcHNnellOSDRpMFFud0x2d1JPQ1JuZjYrTXZ2Wlp1dzNYOE5FNHprQ3VSSzhTSy9RUXorcFBZM2NyMjAvRzR5b0ZoK2UzbmRvdTNnbTZ3TGJ6Q0JXSWJSSlM5STFTb0h0R0NuclV5VUFlSDJTV2lyU0NweHQrV2NrR1BYZ2d0MVg1U201VXltQTZZQUZMNWd5cEtKdHBlUmFnVVcycjFXSnZ2MG1mbTdydzJEYVJuNW1sUmxvd1hKWEhZbCt5NGhXaGYzSUtFKytqaTR2alhucUxlaHFuQ2FsTTBrL0k3RkduRm42a3lIUTRXMFplZ1ZTWllUdVhTK1h3bnpuajNORG9qOXQ1WjN3TUJMZWFvZXVzd0M0b0VXQkxCZUFKTWJyeFpSSzRTczV4eFFSWFlWVGg3azhiQ2dBSHZwNW51dmlWVmlLN0NNTkVva3hKVk5VRFhwVWRrak1hZjRBTDFsRzRHZmxET2g4Qlhxd1lQL1d5dkhFaDUrcTY0dTF6d2l1bUNlTWI4a2RTZ0g3ajYvYTE1SithRkxuWWs1aUZZOFYwdW9xa0dGNmMrclpRZVdCYXh4VFQyRWVSQmtONzRvWkhtb2pPRWpRSmFmMU5PUHc9PQ==
+type: Opaque
+
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  annotations:
+  generation: 1
+  labels:
+    app: fedora-olive-fish-72
+    kubevirt.io/dynamic-credentials-support: 'true'
+    vm.kubevirt.io/template: fedora-server-small
+    vm.kubevirt.io/template.namespace: openshift
+    vm.kubevirt.io/template.revision: '1'
+    vm.kubevirt.io/template.version: v0.29.1
+  managedFields:
+    - apiVersion: kubevirt.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:vm.kubevirt.io/validations': {}
+          'f:labels':
+            .: {}
+            'f:app': {}
+            'f:kubevirt.io/dynamic-credentials-support': {}
+            'f:vm.kubevirt.io/template': {}
+            'f:vm.kubevirt.io/template.namespace': {}
+            'f:vm.kubevirt.io/template.revision': {}
+            'f:vm.kubevirt.io/template.version': {}
+        'f:spec':
+          .: {}
+          'f:dataVolumeTemplates': {}
+          'f:running': {}
+          'f:template':
+            .: {}
+            'f:metadata':
+              .: {}
+              'f:annotations':
+                .: {}
+                'f:vm.kubevirt.io/flavor': {}
+                'f:vm.kubevirt.io/os': {}
+                'f:vm.kubevirt.io/workload': {}
+              'f:labels':
+                .: {}
+                'f:kubevirt.io/domain': {}
+                'f:kubevirt.io/size': {}
+            'f:spec':
+              .: {}
+              'f:architecture': {}
+              'f:domain':
+                .: {}
+                'f:cpu':
+                  .: {}
+                  'f:cores': {}
+                  'f:sockets': {}
+                  'f:threads': {}
+                'f:devices':
+                  .: {}
+                  'f:disks': {}
+                  'f:interfaces': {}
+                  'f:rng': {}
+                'f:features':
+                  .: {}
+                  'f:smm':
+                    .: {}
+                    'f:enabled': {}
+                'f:firmware':
+                  .: {}
+                  'f:bootloader':
+                    .: {}
+                    'f:efi': {}
+                'f:memory':
+                  .: {}
+                  'f:guest': {}
+              'f:networks': {}
+              'f:terminationGracePeriodSeconds': {}
+              'f:volumes': {}
+      manager: kubectl-create
+      operation: Update
+  name: fedora-olive-fish-72
+  namespace: virtualization-test
+spec:
+  dataVolumeTemplates:
+    - apiVersion: cdi.kubevirt.io/v1beta1
+      kind: DataVolume
+      metadata:
+        creationTimestamp: null
+        name: fedora-olive-fish-72
+      spec:
+        sourceRef:
+          kind: DataSource
+          name: fedora
+          namespace: openshift-virtualization-os-images
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  running: true
+  template:
+    metadata:
+      annotations:
+        vm.kubevirt.io/flavor: small
+        vm.kubevirt.io/os: fedora
+        vm.kubevirt.io/workload: server
+      creationTimestamp: null
+      labels:
+        kubevirt.io/domain: fedora-olive-fish-72
+        kubevirt.io/size: small
+    spec:
+      accessCredentials:
+        - sshPublicKey:
+            propagationMethod:
+              noCloud: {}
+            source:
+              secret:
+                secretName: ssh-fedora-olive-fish-72
+      architecture: amd64
+      domain:
+        cpu:
+          cores: 1
+          sockets: 1
+          threads: 1
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - macAddress: '02:a0:35:00:00:01'
+              masquerade: {}
+              model: virtio
+              name: default
+          rng: {}
+        features:
+          acpi: {}
+          smm:
+            enabled: true
+        firmware:
+          bootloader:
+            efi: {}
+        machine:
+          type: pc-q35-rhel9.4.0
+        memory:
+          guest: 2Gi
+        resources: {}
+      networks:
+        - name: default
+          pod: {}
+      terminationGracePeriodSeconds: 180
+      volumes:
+        - dataVolume:
+            name: fedora-olive-fish-72
+          name: rootdisk
+        - cloudInitNoCloud:
+            userData: |-
+              #cloud-config
+              user: fedora
+              password: fedora
+              chpasswd: { expire: False }
+          name: cloudinitdisk
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jboss-ssh-external
+  namespace: virtualization-test
+spec:
+  type: NodePort
+  selector:
+    vm.kubevirt.io/name: fedora-olive-fish-72
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: 22
+      nodePort: 30022
