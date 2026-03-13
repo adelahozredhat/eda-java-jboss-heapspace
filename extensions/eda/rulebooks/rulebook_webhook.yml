@@ -10,5 +10,11 @@
     - name: Evento de Heap Space detectado
       condition: event.payload.status == "OutOfMemory"
       action:
-        run_playbook:
-          name: helloworld.yml
+        run_job_template:
+          name: "Helloworld"
+          organization: "Default"
+          # Puedes pasar variables del webhook directamente al Job
+          job_args:
+            extra_vars:
+              target_host: "{{ event.payload.host }}"
+              reason: "Triggered by EDA Webhook"
