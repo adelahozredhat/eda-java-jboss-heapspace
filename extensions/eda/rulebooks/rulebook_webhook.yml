@@ -12,3 +12,6 @@
       action:
         run_playbook:
           name: helloworld.yml
+          extra_vars:
+            ansible_eda_host: "{{ event.payload.host | default('localhost') }}"
+            error_details: "{{ event.payload.reason | default('No reason provided') }}
