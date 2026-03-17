@@ -12,7 +12,7 @@ metadata:
   name: ssh-fedora-olive-fish-72
   namespace: virtualization-test
 data:
-  key: c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFDQVFERHNjU1doT2xoSXJlOEJrUGpQUmR5NHF5MDJpTWIrZE50NXJUdmtabDZhZHlEUTA1cE9ZekRvay9FZE5oZVczVUFaOWNSdVl0UXlyOEd5WHhjZzJlcmdYMlUwUjVNcUN6c0ZibVdKUythUzZvZklqOVl4V3FIbU9pTVpDN3lrQisrVVNnNGFDTkw4bUo0K1k4NmFKeWp0VmYrVGxDeVczOHhXQUVPSmN6YXFFWDFlSktFN3FwWUhta2FNY05aRVh2d09pZ0lhM0MyaDFtUXEyaTBzM1cwNjQ4enlqcHNnellOSDRpMFFud0x2d1JPQ1JuZjYrTXZ2Wlp1dzNYOE5FNHprQ3VSSzhTSy9RUXorcFBZM2NyMjAvRzR5b0ZoK2UzbmRvdTNnbTZ3TGJ6Q0JXSWJSSlM5STFTb0h0R0NuclV5VUFlSDJTV2lyU0NweHQrV2NrR1BYZ2d0MVg1U201VXltQTZZQUZMNWd5cEtKdHBlUmFnVVcycjFXSnZ2MG1mbTdydzJEYVJuNW1sUmxvd1hKWEhZbCt5NGhXaGYzSUtFKytqaTR2alhucUxlaHFuQ2FsTTBrL0k3RkduRm42a3lIUTRXMFplZ1ZTWllUdVhTK1h3bnpuajNORG9qOXQ1WjN3TUJMZWFvZXVzd0M0b0VXQkxCZUFKTWJyeFpSSzRTczV4eFFSWFlWVGg3azhiQ2dBSHZwNW51dmlWVmlLN0NNTkVva3hKVk5VRFhwVWRrak1hZjRBTDFsRzRHZmxET2g4Qlhxd1lQL1d5dkhFaDUrcTY0dTF6d2l1bUNlTWI4a2RTZ0g3ajYvYTE1SithRkxuWWs1aUZZOFYwdW9xa0dGNmMrclpRZVdCYXh4VFQyRWVSQmtONzRvWkhtb2pPRWpRSmFmMU5PUHc9PQ==
+  key: c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSUNlR2UzWmZGdVByTEJTNE15M1hIQThhc3JtTXc3M0dMRVdJN1A4R29TSWggYWRlYWxob3pATWlXaUZpLVIzNjAwLXNydg==
 type: Opaque
 
 ---
@@ -20,14 +20,24 @@ apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
   annotations:
+    vm.kubevirt.io/validations: |
+      [
+        {
+          "name": "minimal-required-memory",
+          "path": "jsonpath::.spec.domain.memory.guest",
+          "rule": "integer",
+          "message": "This VM requires more memory.",
+          "min": 2147483648
+        }
+      ]
   generation: 1
   labels:
-    app: fedora-olive-fish-72
+    app: fedora-chocolate-smelt-74
     kubevirt.io/dynamic-credentials-support: 'true'
     vm.kubevirt.io/template: fedora-server-small
     vm.kubevirt.io/template.namespace: openshift
     vm.kubevirt.io/template.revision: '1'
-    vm.kubevirt.io/template.version: v0.29.1
+    vm.kubevirt.io/template.version: v0.34.0
   managedFields:
     - apiVersion: kubevirt.io/v1
       fieldsType: FieldsV1
@@ -47,7 +57,7 @@ metadata:
         'f:spec':
           .: {}
           'f:dataVolumeTemplates': {}
-          'f:running': {}
+          'f:runStrategy': {}
           'f:template':
             .: {}
             'f:metadata':
@@ -63,6 +73,7 @@ metadata:
                 'f:kubevirt.io/size': {}
             'f:spec':
               .: {}
+              'f:accessCredentials': {}
               'f:architecture': {}
               'f:domain':
                 .: {}
@@ -94,7 +105,7 @@ metadata:
               'f:volumes': {}
       manager: kubectl-create
       operation: Update
-  name: fedora-olive-fish-72
+  name: fedora-chocolate-smelt-74
   namespace: virtualization-test
 spec:
   dataVolumeTemplates:
@@ -102,7 +113,7 @@ spec:
       kind: DataVolume
       metadata:
         creationTimestamp: null
-        name: fedora-olive-fish-72
+        name: fedora-chocolate-smelt-74
       spec:
         sourceRef:
           kind: DataSource
@@ -112,7 +123,7 @@ spec:
           resources:
             requests:
               storage: 30Gi
-  running: true
+  runStrategy: RerunOnFailure
   template:
     metadata:
       annotations:
@@ -121,7 +132,7 @@ spec:
         vm.kubevirt.io/workload: server
       creationTimestamp: null
       labels:
-        kubevirt.io/domain: fedora-olive-fish-72
+        kubevirt.io/domain: fedora-chocolate-smelt-74
         kubevirt.io/size: small
     spec:
       accessCredentials:
@@ -146,7 +157,7 @@ spec:
                 bus: virtio
               name: cloudinitdisk
           interfaces:
-            - macAddress: '02:a0:35:00:00:01'
+            - macAddress: '02:c5:44:00:00:01'
               masquerade: {}
               model: virtio
               name: default
@@ -158,8 +169,9 @@ spec:
         firmware:
           bootloader:
             efi: {}
+          serial: 4a5ffbc5-67fd-4610-8ef3-8646e1a5390a
         machine:
-          type: pc-q35-rhel9.4.0
+          type: pc-q35-rhel9.6.0
         memory:
           guest: 2Gi
         resources: {}
@@ -169,15 +181,16 @@ spec:
       terminationGracePeriodSeconds: 180
       volumes:
         - dataVolume:
-            name: fedora-olive-fish-72
+            name: fedora-chocolate-smelt-74
           name: rootdisk
         - cloudInitNoCloud:
             userData: |-
               #cloud-config
               user: fedora
-              password: fedora
+              password: ctsm-fblt-yv3p
               chpasswd: { expire: False }
           name: cloudinitdisk
+
 ---
 apiVersion: v1
 kind: Service
@@ -187,7 +200,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    vm.kubevirt.io/name: fedora-olive-fish-72
+    vm.kubevirt.io/name: fedora-chocolate-smelt-74
   ports:
     - name: ssh
       port: 22

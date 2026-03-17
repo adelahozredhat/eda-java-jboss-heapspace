@@ -15,15 +15,6 @@
     awx_user: admin
     awx_password: admin
 
-    token_user: "devops_user"
-    token_scope: "write"
-
-    ca_filename: crc-router-ca.crt
-    configmap_name: gitea-custom-ca
-
-    vm_name: "fedora-olive-fish-72"
-    namespace: "virtualization-test"
-
   tasks:
 
     - name: 
@@ -42,7 +33,7 @@
         src: automation-platform-install-operator.yaml
       register: step
       until: step.result.results| json_query('[?result.status.currentCSV]| [0].result.status.currentCSV') is defined and (step.result.results | json_query('[?result.status.currentCSV] | [0].result.status.currentCSV')) is not none
-      retries: "10"
+      retries: "25"
       delay: "20"
 
     - name: Report Operator Status
@@ -57,7 +48,7 @@
         namespace: "ansible-automation-platform"
       register: csv_status_check
       until: csv_status_check.resources| json_query('[?status.phase]| [0].status.phase') == "Succeeded"
-      retries: "10"
+      retries: "15"
       delay: "20"
 
     - name: Report Operator Status
@@ -81,8 +72,8 @@
         validate_certs: false # Set to true if using proper SSL/TLS certificates
       register: app_status_check
       until: app_status_check.status == 401
-      retries: "60"
-      delay: "15"
+      retries: "50"
+      delay: "20"
       delegate_to: localhost
 
     - name: "Get the Authentication Token for the future requests"
@@ -150,7 +141,7 @@
         namespace: "openshift-cnv"
       register: csv_status_check
       until: csv_status_check.resources| json_query('[?status.phase]| [0].status.phase') == "Succeeded"
-      retries: "10"
+      retries: "20"
       delay: "20"
 
     # - name: Get a list of all pods from any namespace
@@ -180,8 +171,8 @@
         src: openshift-virtualization-hyper-converged.yaml
       register: step
       until: step.result.status is defined and step.result.status.systemHealthStatus == "healthy"
-      retries: "10"
-      delay: "20"
+      retries: "15"
+      delay: "25"
 
 
     - name: Report Operator Status
@@ -197,8 +188,8 @@
         state: present
         src: openshift-virtualization-machine-fedora.yaml
       register: step
-      until: step.result.results| json_query('[?result.status.printableStatus]| [0].result.status.printableStatus') == 'Running'
-      retries: "1"
+      until: step.result is defined and step.result.results| json_query('[?result.status.printableStatus]| [0].result.status.printableStatus') == 'Running'
+      retries: "4"
       delay: "15"
       ignore_errors: true
 
@@ -206,10 +197,87 @@
       ansible.builtin.debug:
         msg: "{{step}}"
 
-    - name: Report Operator Status
-      ansible.builtin.debug:
-        msg: "{{step.result.results| json_query('[?result.status.printableStatus]| [0].result.status.printableStatus')}}"
+    # - name: Report Operator Status
+    #   ansible.builtin.debug:
+    #     msg: "{{step.result.results| json_query('[?result.status.printableStatus]| [0].result.status.printableStatus')}}"
 
-    - name: Pause for 5 minutes to build app cache
+    - name: Pause for 3 minutes to build app cache
       ansible.builtin.pause:
         minutes: 3
+
+    - name: Crear Proyecto para el Playbook (Remediation)
+      ansible.controller.project:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_user }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ validate_certs }}"
+        name: "JBoss Remediation Project"
+        organization: "{{ organization }}"
+        scm_type: git
+        scm_url: "https://github.com/tu-usuario/repo-playbooks.git"
+        wait: yes
+
+    - name: Crear Proyecto para el Rulebook (EDA)
+      ansible.controller.project:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_user }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ validate_certs }}"
+        name: "JBoss EDA Rulebook Project"
+        organization: "{{ organization }}"
+        scm_type: git
+        scm_url: "https://github.com/tu-usuario/repo-rulebooks.git"
+        wait: yes
+
+    - name: Crear Job Template para HelloWorld
+      ansible.controller.job_template:
+        controller_host: "{{ controller_host }}"
+        controller_username: "{{ controller_user }}"
+        controller_password: "{{ controller_password }}"
+        validate_certs: "{{ validate_certs }}"
+        name: "JBoss HelloWorld - OOM Reaction"
+        project: "JBoss Remediation Project"
+        playbook: "helloworld.yml"
+        inventory: "{{ inventory_name }}"
+        organization: "{{ organization }}"
+        state: present
+        ask_variables_on_launch: true
+
+- name: Crear nuevo repositorio, webhook y notificar
+  hosts: fedora
+  gather_facts: no
+  become: yes
+  tasks:
+
+    - name: Instalar Java 21 y Unzip (Necesario para descomprimir)
+      ansible.builtin.dnf:
+        name: 
+          - java-21-openjdk-devel
+          - unzip
+        state: present
+
+    - name: Copiar y Descomprimir JBoss EAP 8.1
+      ansible.builtin.unarchive:
+        src: "./jboss-eap-8.1.0-dev.zip" # Origen en tu local
+        dest: /opt/                      # Destino en la VM
+        remote_src: no                   # 'no' significa que el archivo está en el host de Ansible
+        owner: fedora
+        group: fedora
+
+    - name: Configurar JAVA_OPTS con disparador EDA en standalone.conf
+      ansible.builtin.lineinfile:
+        path: /opt/jboss-eap-8.1/bin/standalone.conf
+        line: |
+          JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:OnOutOfMemoryError=\"curl -k -H 'Content-Type: application/json' -X POST -d '{\"status\":\"OutOfMemory\",\"host\":\"$(hostname)\"}' https://example-ansible-automation-platform.apps-crc.testing/\""
+        insertafter: EOF
+
+    - name: Desplegar el exploit de memoria
+      ansible.builtin.copy:
+        src: "crash.war"
+        dest: "/opt/jboss-eap-8.1/standalone/deployments/"
+        owner: fedora
+        group: fedora
+        mode: '0644'
+
+    - name: Iniciar JBoss como servicio
+      shell: "nohup /opt/jboss-eap-8.1/bin/standalone.sh -b 0.0.0.0 &"

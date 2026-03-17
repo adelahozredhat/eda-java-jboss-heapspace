@@ -83,7 +83,7 @@
         ansible_user: cloud-user
 
 - name: Configurar JBoss y Java 21 en la VM
-  hosts: jboss_vms
+  hosts: fedora
   become: yes
   tasks:
     - name: Instalar OpenJDK 21
