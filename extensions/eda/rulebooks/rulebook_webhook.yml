@@ -11,7 +11,7 @@
       condition: event.payload.status == "OutOfMemory"
       action:
         run_job_template:
-          name: "Helloworld"
+          name: "JBoss HelloWorld - OOM Reaction"
           organization: "Default"
           # Puedes pasar variables del webhook directamente al Job
           job_args:

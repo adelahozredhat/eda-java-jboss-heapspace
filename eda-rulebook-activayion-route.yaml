@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: eda-webhook-external
+  namespace: ansible-automation-platform
+  labels:
+    app: ansible-eda
+spec:
+  # El host se puede omitir y OpenShift generará uno automáticamente
+  # O puedes definir uno específico: host: eda-webhook.apps.mi-cluster.com
+  to:
+    kind: Service
+    name: example-rulebook-activation  # El nombre del Service que apunta al puerto 5000
+    weight: 100
+  port:
+    targetPort: 5000
+  tls:
+    termination: edge          # Esto habilita HTTPS en el router de OpenShift
+    insecureEdgeTerminationPolicy: Allow # Opcional: permite redirección de HTTP a HTTPS

@@ -1,8 +1,10 @@
 ---
 - name: Playbook de Respuesta a Incidente
-  hosts: localhost
-  connection: local
+  hosts: all
   tasks:
+    - name: Example from an Ansible Playbook
+      ansible.builtin.ping:
+
     - name: Mostrar mensaje de alerta
       debug:
         msg: "¡Hola! He recibido una alerta de Heap Space. Iniciando diagnóstico automático..."

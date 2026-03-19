@@ -1,0 +1,87 @@
+---
+- name: Config Fedora Machine and install JBoss
+  hosts: fedora-chocolate-smelt-74
+  gather_facts: no
+  become: yes
+  tasks:
+
+    - name: Install java-21 and unzip
+      ansible.builtin.dnf:
+        name: 
+          - java-21-openjdk-devel
+          - unzip
+          # - python-firewall
+          # - firewalld
+        state: present
+
+    - name: Check if exist binaries of Jboss
+      ansible.builtin.stat:
+        path: /opt/jboss-eap-8.1/bin
+      register: jboss_dir
+
+    - name: Unarchive JBoss EAP 8.1
+      ansible.builtin.unarchive:
+        src: "../jboss-eap-8.1.0-dev.zip" # Origen en tu local
+        dest: /opt/                      # Destino en la VM
+        remote_src: no                   # 'no' significa que el archivo está en el host de Ansible
+        owner: fedora
+        group: fedora
+      when: not jboss_dir.stat.exists
+
+    - name: Check if JBoss service exist
+      ansible.builtin.stat:
+        path: /etc/systemd/system/jboss-eap.service
+      register: jboss_eap_service
+
+    - name: Config standalone file config of Jboss to call to EDA
+      ansible.builtin.lineinfile:
+        path: /opt/jboss-eap-8.1/bin/standalone.conf
+        line: |
+          JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:OnOutOfMemoryError=\"curl -k -H 'Content-Type: application/json' -X POST -d '{\"status\":\"OutOfMemory\",\"host\":\"$(hostname)\"}' https://example-ansible-automation-platform.apps-crc.testing/\""
+        insertafter: EOF
+      when: not jboss_eap_service.stat.exists
+
+    - name: Clean old deploys information
+      ansible.builtin.file:
+        path: "/opt/jboss-eap-8.1/standalone/deployments/{{ item }}"
+        state: absent
+      loop:
+        - crash.war
+        - crash.war.failed
+        - crash.war.isdeploying
+
+    - name: Deploy Crash memory application in JBoss
+      ansible.builtin.copy:
+        src: "crash.war"
+        dest: "/opt/jboss-eap-8.1/standalone/deployments/"
+        owner: fedora
+        group: fedora
+        mode: '0644'
+
+    # - name: Abrir puerto 8080 en el firewall de la VM
+    #   ansible.builtin.firewalld:
+    #     port: 8080/tcp
+    #     permanent: true
+    #     state: enabled
+    #     immediate: true
+    #   become: true
+
+    # - name: Iniciar JBoss como servicio
+    #   shell: "nohup /opt/jboss-eap-8.1/bin/standalone.sh -b 0.0.0.0 &"
+
+    - name: Copy jboss-eap service file definition
+      ansible.builtin.copy:
+        src: "jboss-eap.service"
+        dest: /etc/systemd/system
+        owner: fedora
+        group: fedora
+        mode: '0644'
+      when: not jboss_eap_service.stat.exists
+
+    - name: Enabled and Restart jboss-eap service
+      ansible.builtin.systemd:
+        name: jboss-eap
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+

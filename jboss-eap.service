@@ -1,0 +1,17 @@
+[Unit]
+Description=JBoss EAP 8.1 Application Server
+After=network.target
+
+[Service]
+Type=simple
+User=fedora
+Group=fedora
+Environment="JBOSS_HOME=/opt/jboss-eap-8.1"
+ExecStart=/opt/jboss-eap-8.1/bin/standalone.sh -b 0.0.0.0
+# Esto es clave para que el proceso no se pierda
+KillMode=process
+# Opcional: reiniciar automáticamente si falla
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

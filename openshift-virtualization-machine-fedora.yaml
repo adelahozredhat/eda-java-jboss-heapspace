@@ -145,9 +145,9 @@ spec:
       architecture: amd64
       domain:
         cpu:
-          cores: 1
+          cores: 2
           sockets: 1
-          threads: 1
+          threads: 2
         devices:
           disks:
             - disk:
@@ -161,6 +161,9 @@ spec:
               masquerade: {}
               model: virtio
               name: default
+              ports:
+                - port: 22
+                - port: 8080                
           rng: {}
         features:
           acpi: {}
@@ -171,9 +174,9 @@ spec:
             efi: {}
           serial: 4a5ffbc5-67fd-4610-8ef3-8646e1a5390a
         machine:
-          type: pc-q35-rhel9.6.0
+          type: q35
         memory:
-          guest: 2Gi
+          guest: 4Gi
         resources: {}
       networks:
         - name: default
@@ -187,22 +190,22 @@ spec:
             userData: |-
               #cloud-config
               user: fedora
-              password: ctsm-fblt-yv3p
+              password: fedora
               chpasswd: { expire: False }
           name: cloudinitdisk
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: jboss-ssh-external
-  namespace: virtualization-test
-spec:
-  type: NodePort
-  selector:
-    vm.kubevirt.io/name: fedora-chocolate-smelt-74
-  ports:
-    - name: ssh
-      port: 22
-      targetPort: 22
-      nodePort: 30022
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: jboss-ssh-external
+#   namespace: virtualization-test
+# spec:
+#   type: NodePort
+#   selector:
+#     vm.kubevirt.io/name: fedora-chocolate-smelt-74
+#   ports:
+#     - name: ssh
+#       port: 22
+#       targetPort: 22
+#       nodePort: 30022
