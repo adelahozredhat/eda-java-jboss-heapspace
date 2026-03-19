@@ -1,6 +1,6 @@
 ---
 - name: Playbook de Respuesta a Incidente
-  hosts: all
+  hosts: "{{target_host}}"
   tasks:
     - name: Example from an Ansible Playbook
       ansible.builtin.ping:
