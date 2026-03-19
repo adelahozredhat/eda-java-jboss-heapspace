@@ -11,4 +11,11 @@
 
     - name: Simular acción de corrección
       debug:
-        msg: "El evento vino del host: {{ event.payload.host | default('Desconocido') }}"
+        msg: "El evento vino del host: {{ target_host | default('Desconocido') }}"
+
+    - name: Enabled and Restart jboss-eap service
+      ansible.builtin.systemd:
+        name: jboss-eap
+        state: restarted
+        enabled: yes
+        daemon_reload: yes

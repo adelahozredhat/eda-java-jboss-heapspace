@@ -7,20 +7,16 @@
   gather_facts: no
 
   vars:
-    crc_url_api_client: "https://api.cluster-zd5cp.dynamic.redhatworkshops.io:6443"
+    crc_url_api_client: "https://api.cluster-bbz5b.dynamic.redhatworkshops.io:6443"
     crc_user: "admin"
-    crc_password: "MjE3MTkz"
+    crc_password: "MTMyNjMw"
     crc_validate_certs: false
 
-    awx_host: example-ansible-automation-platform.apps.cluster-zd5cp.dynamic.redhatworkshops.io
+    awx_host: example-ansible-automation-platform.apps.cluster-bbz5b.dynamic.redhatworkshops.io
     awx_user: admin
     awx_password: admin
 
   tasks:
-
-    - name: 
-      shell: fuser -k 2222/tcp
-      ignore_errors: true
 
     - name: 
       shell: "oc login --insecure-skip-tls-verify -u {{crc_user}} -p {{crc_password}} {{crc_url_api_client}} "
@@ -218,7 +214,7 @@
         name: "AAP Connection"
         description: "AAP Connection"
         inputs:
-          host: "https://{{awx_host}}"
+          host: "https://{{awx_host}}/api/controller/"
           password: "admin"
           request_timeout: "10"
           username: "admin"
@@ -318,6 +314,8 @@
         source: openshift_virtualization
         organization: Default
         execution_environment: Control Plane Execution Environment
+        source_vars:
+          host_format: '{name}'
         state: present
 
     - name: Update a single inventory source
@@ -339,6 +337,8 @@
         project: "JBoss Remediation Project"
         playbook: "helloworld.yml"
         inventory: "Inventory Openshift Virtualization"
+        credentials:
+          - "Fedora Credential"
         organization: Default
         state: present
         ask_variables_on_launch: true
@@ -407,6 +407,12 @@
   become: yes
   tasks:
 
+    - name: 
+      shell: fuser -k 2222/tcp
+      delegate_to: localhost
+      become: no
+      ignore_errors: true
+
     - name: Install java-21 and unzip
       ansible.builtin.dnf:
         name: 
@@ -435,13 +441,39 @@
         path: /etc/systemd/system/jboss-eap.service
       register: jboss_eap_service
 
+    - name: Copy jboss-eap service file definition
+      ansible.builtin.copy:
+        src: "jboss-eap.service"
+        dest: /etc/systemd/system
+        owner: fedora
+        group: fedora
+        mode: '0644'
+      when: not jboss_eap_service.stat.exists
+
+    - name: Crear el directorio /opt/datos_fedora
+      ansible.builtin.file:
+        path: /opt/jboss-eap-8.1/standalone/log/dumps/
+        state: directory
+        owner: fedora
+        group: fedora
+        mode: '0755'
+      when: not jboss_eap_service.stat.exists
+
     - name: Config standalone file config of Jboss to call to EDA
       ansible.builtin.lineinfile:
         path: /opt/jboss-eap-8.1/bin/standalone.conf
         line: |
-          JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:OnOutOfMemoryError=\"curl -k -H 'Content-Type: application/json' -X POST -d '{\"status\":\"OutOfMemory\",\"host\":\"$(hostname)\"}' https://{{end_point_eda_rulebook}}/\""
+          JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/jboss-eap-8.1/standalone/log/dumps/ -XX:OnOutOfMemoryError=\"curl -k -H 'Content-Type: application/json' -X POST -d '{\\\"status\\\":\\\"OutOfMemory\\\",\\\"host\\\":\\\"$(hostname)\\\"}' {{end_point_eda_rulebook}}/ \""
         insertafter: EOF
       when: not jboss_eap_service.stat.exists
+
+    - name: Enabled and Restart jboss-eap service
+      ansible.builtin.systemd:
+        name: jboss-eap
+        state: stop
+        enabled: yes
+        daemon_reload: yes
+      when: jboss_eap_service.stat.exists
 
     - name: Clean old deploys information
       ansible.builtin.file:
@@ -451,6 +483,7 @@
         - crash.war
         - crash.war.failed
         - crash.war.isdeploying
+      when: jboss_eap_service.stat.exists
 
     - name: Deploy Crash memory application in JBoss
       ansible.builtin.copy:
@@ -471,15 +504,6 @@
     # - name: Iniciar JBoss como servicio
     #   shell: "nohup /opt/jboss-eap-8.1/bin/standalone.sh -b 0.0.0.0 &"
 
-    - name: Copy jboss-eap service file definition
-      ansible.builtin.copy:
-        src: "jboss-eap.service"
-        dest: /etc/systemd/system
-        owner: fedora
-        group: fedora
-        mode: '0644'
-      when: not jboss_eap_service.stat.exists
-
     - name: Enabled and Restart jboss-eap service
       ansible.builtin.systemd:
         name: jboss-eap
@@ -493,9 +517,9 @@
   gather_facts: no
 
   vars:
-    crc_url_api_client: "https://api.cluster-zd5cp.dynamic.redhatworkshops.io:6443"
+    crc_url_api_client: "https://api.cluster-bbz5b.dynamic.redhatworkshops.io:6443"
     crc_user: "admin"
-    crc_password: "MjE3MTkz"
+    crc_password: "MTMyNjMw"
     crc_validate_certs: false
   tasks:
 

@@ -9,7 +9,14 @@ Group=fedora
 Environment="JBOSS_HOME=/opt/jboss-eap-8.1"
 ExecStart=/opt/jboss-eap-8.1/bin/standalone.sh -b 0.0.0.0
 # Esto es clave para que el proceso no se pierda
-KillMode=process
+KillMode=control-group
+
+#A graceful shutdown command using the JBoss CLI
+ExecStop=/opt/jboss-eap-8.1/bin/jboss-cli.sh --connect --command=:shutdown
+
+# Give it enough time to shut down before a forced kill
+TimeoutStopSec=120
+
 # Opcional: reiniciar automáticamente si falla
 Restart=on-failure
 
