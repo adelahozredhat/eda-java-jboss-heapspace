@@ -1,0 +1,40 @@
+{% raw %}
+{
+  "name": "Alerta error logs EDA",
+  "rule_type_id": ".es-query",
+  "consumer": "alerts",
+  "schedule": { "interval": "1m" },
+  "params": {
+    "index": ["*filebeat*"],
+    "timeField": "@timestamp",
+    "esQuery": "{ \"query\": { \"match\": { \"message\": \"java.lang.OutOfMemoryError\" } } }",
+    "size": 20,
+    "thresholdComparator": ">",
+    "threshold": [0],
+    "timeWindowSize": 1,
+    "timeWindowUnit": "m",
+    "excludeHitsFromPreviousRun": false,
+    "groupBy": "top",
+    "termSize": 1,
+    "sourceFields": [],
+    "termField": "host.name"
+    
+  },
+  "actions": [
+    {
+{% endraw %}
+      "id": "{{ connector_id }}",
+{% raw %}
+      "group": "query matched",
+      "frequency": {
+        "summary": false,
+        "notify_when": "onActionGroupChange"
+      }, 
+      "params": {
+        "body": "{ \"alert\": \"Error detectado\", \"host\": \"{{context.hits.0._source.host.hostname}}\", \"message\": \"{{context.hits.0._source.message}}\", \"hits\": \"{{context.hits}}\",\"status\": \"OutOfMemory\" }"
+      }
+    }
+  ]
+
+}
+{% endraw %}

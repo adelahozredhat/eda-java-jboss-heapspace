@@ -1,0 +1,73 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch-poc
+  namespace: eck-operator
+spec:
+  version: 9.3.0
+  nodeSets:
+  - name: default
+    count: 1
+    config:
+      # Desactivamos mmap para evitar errores de privilegios en el host de la PoC
+      node.store.allow_mmap: false
+      # Configuración de roles básica para un solo nodo
+      node.roles: ["master", "data", "ingest", "ml"]
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 2Gi
+              cpu: 1
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana-poc
+  namespace: eck-operator
+spec:
+  config:
+    xpack.actions.allowedHosts: ["*"]
+  version: 9.3.0
+  count: 1
+  elasticsearchRef:
+    name: elasticsearch-poc
+  podTemplate:
+    spec:
+      containers:
+      - name: kibana
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: 0.5
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kibana-poc
+  namespace: eck-operator
+spec:
+  to:
+    kind: Service
+    name: kibana-poc-kb-http
+  port:
+    targetPort: 5601
+  tls:
+    termination: passthrough # Importante: ECK usa HTTPS interno por defecto
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: elasticsearch-poc-route
+  namespace: eck-operator
+spec:
+  to:
+    kind: Service
+    name: elasticsearch-poc-es-http          # Servicio creado por ECK
+  port:
+    targetPort: 9200
+  tls:
+    termination: passthrough                 # Passthrough para SSL de ECK
+    insecureEdgeTerminationPolicy: Redirect

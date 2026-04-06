@@ -7,16 +7,33 @@
   gather_facts: no
 
   vars:
-    crc_url_api_client: "https://api.cluster-bbz5b.dynamic.redhatworkshops.io:6443"
+    crc_url_api_client: "https://api.cluster-7hbnw.dynamic.redhatworkshops.io:6443"
     crc_user: "admin"
-    crc_password: "MTMyNjMw"
+    crc_password: "MTM5NTk4"
     crc_validate_certs: false
 
-    awx_host: example-ansible-automation-platform.apps.cluster-bbz5b.dynamic.redhatworkshops.io
+    awx_host: example-ansible-automation-platform.apps.cluster-7hbnw.dynamic.redhatworkshops.io
     awx_user: admin
     awx_password: admin
 
+    kibana_host: kibana-poc-eck-operator.apps.cluster-7hbnw.dynamic.redhatworkshops.io
+    kibana_user: elastic
+
+    elastic_host: elasticsearch-poc-route-eck-operator.apps.cluster-7hbnw.dynamic.redhatworkshops.io
   tasks:
+
+    - name: "Set the oauth token to be used since now"
+      ansible.builtin.set_fact:
+        crc_url_api_client: "{{crc_url_api_client}}"
+        crc_user: "{{crc_user}}"
+        crc_password: "{{crc_password}}"
+        crc_validate_certs: "{{crc_validate_certs}}"
+        awx_host: "{{awx_host}}"
+        awx_user: "{{awx_user}}"
+        awx_password: "{{awx_password}}"
+        kibana_host: "{{kibana_host}}"
+        kibana_user: "{{kibana_user}}"
+        elastic_host: "{{elastic_host}}"
 
     - name: 
       shell: "oc login --insecure-skip-tls-verify -u {{crc_user}} -p {{crc_password}} {{crc_url_api_client}} "
@@ -75,7 +92,6 @@
       until: app_status_check.status == 401
       retries: "50"
       delay: "20"
-      delegate_to: localhost
 
     - name: "Get the Authentication Token for the future requests"
       ansible.builtin.uri:
@@ -105,7 +121,6 @@
       until: app_status_check  is succeeded
       retries: "15"
       delay: "15"
-      delegate_to: localhost
 
     - name: Openshift Virtualization Sub Yaml push on openshift
       kubernetes.core.k8s:
@@ -131,7 +146,7 @@
         namespace: "openshift-cnv"
       register: csv_status_check
       until: csv_status_check.resources| json_query('[?status.phase]| [0].status.phase') == "Succeeded"
-      retries: "20"
+      retries: "30"
       delay: "20"
 
     # - name: Get a list of all pods from any namespace
@@ -310,7 +325,7 @@
         inventory: Inventory Openshift Virtualization
         credential: Openshift
         overwrite: false
-        update_on_launch: false
+        update_on_launch: true
         source: openshift_virtualization
         organization: Default
         execution_environment: Control Plane Execution Environment
@@ -385,6 +400,76 @@
     - name: Asignar ese dato a un host específico
       set_fact:
         end_point_eda_rulebook: "http://{{ route_data.resources[0].spec.host }}"
+
+    - name: Openshift eck 
+      kubernetes.core.k8s:
+        host: "{{ crc_url_api_client }}"
+        api_key: "{{ token.stdout }}"
+        validate_certs: "{{crc_validate_certs}}"
+        state: present
+        src: eck-install-operator.yaml
+      register: step
+      until: step.result.results| json_query('[?result.status.currentCSV]| [0].result.status.currentCSV') is defined and (step.result.results | json_query('[?result.status.currentCSV] | [0].result.status.currentCSV')) is not none
+      retries: "10"
+      delay: "15"
+
+    - name: Report Operator Status
+      ansible.builtin.debug:
+        msg: "{{step.result.results| json_query('[?result.status.currentCSV]| [0].result.status.currentCSV')}}"
+
+    - name: Get ClusterServiceVersion (CSV) status
+      kubernetes.core.k8s_info:
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        name: "{{step.result.results| json_query('[?result.status.currentCSV]| [0].result.status.currentCSV')}}"
+        namespace: "openshift-cnv"
+      register: csv_status_check
+      until: csv_status_check.resources| json_query('[?status.phase]| [0].status.phase') == "Succeeded"
+      retries: "20"
+      delay: "20"
+
+    - name: Report Operator Status
+      ansible.builtin.debug:
+        msg: "{{csv_status_check.resources| json_query('[?status.phase]| [0].status.phase')}}"
+
+    - name: Install ECK Instances
+      kubernetes.core.k8s:
+        state: present
+        host: "{{ crc_url_api_client }}"
+        api_key: "{{ token.stdout }}"
+        validate_certs: "{{crc_validate_certs}}"
+        src: eck-instances-operator.yaml
+      register: step3
+
+    - name: Obtener secret de elastic user
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: elasticsearch-poc-es-elastic-user
+        namespace: eck-operator
+      register: elastic_secret
+
+    - name: Decodificar password
+      set_fact:
+        elastic_password: "{{ elastic_secret.resources[0].data.elastic | b64decode }}"
+      
+    - name: ✅ Wait for the URL to be available (HTTP 200)
+      ansible.builtin.uri:
+        url: "https://{{kibana_host}}/"
+        method: GET
+        status_code: 200 # The desired HTTP status code
+        validate_certs: false # Set to true if using proper SSL/TLS certificates
+      register: app_status_check
+      until: app_status_check.status == 200
+      retries: "50"
+      delay: "20"
+
+    - name: Asignar ese dato a un host específico
+      set_fact:
+        end_point_eda_rulebook: "http://{{ route_data.resources[0].spec.host }}"
+        kibana_user: "{{kibana_user}}"
+        elastic_password: "{{ elastic_secret.resources[0].data.elastic | b64decode }}"
+        elastic_host: "{{elastic_host}}"
+
       delegate_to: fedora-chocolate-smelt-74
       delegate_facts: true
 
@@ -413,11 +498,31 @@
       become: no
       ignore_errors: true
 
+    - name: Agregar repositorio Elastic
+      ansible.builtin.yum_repository:
+        name: elastic-9.x
+        description: "Elastic repository for 9.x packages"
+        baseurl: https://artifacts.elastic.co/packages/9.x/yum
+        gpgcheck: yes
+        gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        enabled: yes
+
+    # - name: Install java-21 and unzip
+    #   ansible.builtin.dnf:
+    #     name: 
+    #       - java-21-openjdk-devel
+    #       - unzip
+    #       - filebeat
+    #       # - python-firewall
+    #       # - firewalld
+    #     state: absent
+
     - name: Install java-21 and unzip
       ansible.builtin.dnf:
         name: 
           - java-21-openjdk-devel
           - unzip
+          - filebeat
           # - python-firewall
           # - firewalld
         state: present
@@ -463,14 +568,14 @@
       ansible.builtin.lineinfile:
         path: /opt/jboss-eap-8.1/bin/standalone.conf
         line: |
-          JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/jboss-eap-8.1/standalone/log/dumps/ -XX:OnOutOfMemoryError=\"curl -k -H 'Content-Type: application/json' -X POST -d '{\\\"status\\\":\\\"OutOfMemory\\\",\\\"host\\\":\\\"$(hostname)\\\"}' {{end_point_eda_rulebook}}/ \""
+          JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/opt/jboss-eap-8.1/standalone/log/dumps/ -XX:ErrorFile=/opt/jboss-eap-8.1/standalone/log/hs_err_pid%p.log -XX:OnOutOfMemoryError=\"curl -k -H 'Content-Type: application/json' -X POST -d '{\\\"status\\\":\\\"OutOfMemory\\\",\\\"host\\\":\\\"$(hostname)\\\"}' {{end_point_eda_rulebook}}/ \""
         insertafter: EOF
       when: not jboss_eap_service.stat.exists
 
     - name: Enabled and Restart jboss-eap service
       ansible.builtin.systemd:
         name: jboss-eap
-        state: stop
+        state: stopped
         enabled: yes
         daemon_reload: yes
       when: jboss_eap_service.stat.exists
@@ -511,16 +616,53 @@
         enabled: yes
         daemon_reload: yes
 
+    - name: Configurar Filebeat
+      ansible.builtin.copy:
+        dest: /etc/filebeat/filebeat.yml
+        content: |
+          filebeat.inputs:
+
+            - type: filestream
+              id: jboss-logs
+              paths:
+                - /opt/jboss-eap-8.1/standalone/log/server.log
+
+              parsers:
+                - multiline:
+                    type: pattern
+                    pattern: '^\d{4}-\d{2}-\d{2}'
+                    negate: true
+                    match: after
+
+            - type: filestream
+              id: jvm-errors
+              paths:
+                - /opt/jboss-eap-8.1/standalone/log/hs_err_pid*.log
+
+            # - type: filestream
+            #   id: heap-dumps
+            #   paths:
+            #     - /opt/jboss-eap-8.1/standalone/log/dumps/*.hprof
+
+          processors:
+            - add_host_metadata: ~
+
+          output.elasticsearch:
+            hosts: ["https://{{elastic_host}}:443"]
+            username: "{{kibana_user}}"
+            password: "{{ elastic_password }}"
+            ssl.verification_mode: none
+
+    - name: Habilitar Filebeat
+      ansible.builtin.systemd:
+        name: filebeat
+        enabled: yes
+        state: restarted
+
 - name: Install components in Openshift
   hosts: localhost
   connection: local
   gather_facts: no
-
-  vars:
-    crc_url_api_client: "https://api.cluster-bbz5b.dynamic.redhatworkshops.io:6443"
-    crc_user: "admin"
-    crc_password: "MTMyNjMw"
-    crc_validate_certs: false
   tasks:
 
     - name: 
@@ -550,3 +692,70 @@
     - name: Get Url
       debug:
         msg: "Acceso externo habilitado en: http://{{ route_data.resources[0].spec.host }}"
+
+    - name: Obtener connectors existentes
+      uri:
+        url: "https://{{kibana_host}}/api/actions/connectors"
+        method: GET
+        user: "{{kibana_user}}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          kbn-xsrf: "true"
+
+    - name: Crear webhook connector en Kibana
+      uri:
+        url: "https://{{kibana_host}}/api/actions/connector"
+        method: POST
+        user: "{{kibana_user}}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          kbn-xsrf: "true"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          name: "webhook-ansible"
+          connector_type_id: ".webhook"
+          config:
+            url: "{{end_point_eda_rulebook}}"
+            method: "post"
+            hasAuth: false 
+          secrets: {}
+      register: webhook_result
+
+    - name: Guardar connector_id
+      set_fact:
+        connector_id: "{{ webhook_result.json.id }}"
+
+    - name: Test webhook connector
+      uri:
+        url: "https://{{kibana_host}}/api/actions/connector/{{ webhook_result.json.id }}/_execute"
+        method: POST
+        user: "{{kibana_user}}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          kbn-xsrf: "true"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          params:
+            body: "Test desde Ansible"
+
+    - name: Crear regla alerta logs
+      uri:
+        url: "https://{{ kibana_host }}/api/alerting/rule"
+        method: POST
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          kbn-xsrf: "true"
+          Content-Type: "application/json"
+        body_format: raw
+        body: "{{ lookup('template', 'kibana_rule.json') }}"
