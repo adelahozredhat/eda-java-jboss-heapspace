@@ -1,0 +1,22 @@
+---
+- name: Escuchar eventos de JBoss/Java
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    - name: Debug - Ver que llega exactamente
+      condition: event.status is defined or event.payload is defined
+      action:
+        debug:
+    - name: Evento de Heap Space detectado
+      condition: event.payload.status == "OutOfMemory"
+      action:
+        run_job_template:
+          name: "JBoss HelloWorld - OOM Reaction"
+          organization: "Default"
+          job_args:
+            extra_vars:
+              target_host: "{{ event.payload.host }}"
