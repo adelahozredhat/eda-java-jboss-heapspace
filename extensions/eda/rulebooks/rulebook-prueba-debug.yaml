@@ -1,1 +1,13 @@
+---
+- name: Escuchar eventos de JBoss/Java
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
 
+  rules:
+    - name: Debug - Ver que llega exactamente
+      condition: event.status is defined or event.payload is defined
+      action:
+        debug:
